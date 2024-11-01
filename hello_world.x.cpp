@@ -7,6 +7,7 @@
 
 
 void test_hello_arrow() {
+    std::cout << " ======== TEST hello arrow ============" << std::endl;
     arrow::Int8Builder int8builder;
     int8_t days_raw[5] = {1, 12, 17, 23, 28};
     arrow::Status l_status = int8builder.AppendValues(days_raw, 5);
@@ -18,10 +19,12 @@ void test_hello_arrow() {
     std::cout << " > addr_orig: " << (int64_t)days_raw << std::endl;
     std::cout << " > addr_new:  "  << (int64_t)((std::static_pointer_cast<arrow::Int8Array>(days))->raw_values())
               << std::endl;
+    std::cout << " ======== TEST hello arrow ============" << std::endl;
 }
 
 void test_arrow_schema() {
 
+    std::cout << " ======== TEST arrow schema ============" << std::endl;
     std::shared_ptr<arrow::Field> field_day, field_month, field_year;
     std::shared_ptr<arrow::Schema> schema;
 
@@ -48,11 +51,30 @@ void test_arrow_schema() {
     rbatch = arrow::RecordBatch::Make(schema, days->length(), {days, month, year});
 
     std::cout << rbatch->ToString() << std::endl;
+    std::cout << " ======== TEST arrow schema ============" << std::endl;
+}
+
+void test_arrow_chunked_array() {
+
+    std::cout << " ======== TEST chunked array ============" << std::endl;
+    arrow::Int8Builder int8builder;
+    int8_t days_raw1[5] = {1, 12, 17, 23, 28};
+    int8_t days_raw2[5] = {1, 12, 17, 23, 28};
+    [[maybe_unused]] arrow::Status l_status_days = int8builder.AppendValues(days_raw1, 5);
+    std::shared_ptr<arrow::Array> days1 = *int8builder.Finish();
+    l_status_days = int8builder.AppendValues(days_raw2, 5);
+    std::shared_ptr<arrow::Array> days2 = *int8builder.Finish();
+
+    arrow::ArrayVector days_vec{days1, days2};
+    std::shared_ptr<arrow::ChunkedArray> days_chunk = std::make_shared<arrow::ChunkedArray>(days_vec);
+    std::cout << " >> " << days_chunk->ToString() << std::endl;
+    std::cout << " ======== TEST chunked array ============" << std::endl;
 }
 
 int main() {
 
-    // test_hello_arrow();
+    test_hello_arrow();
     test_arrow_schema();
+    test_arrow_chunked_array();
     return 0;
 }
