@@ -14,6 +14,7 @@ else()
 endif()
 
 find_package(Arrow REQUIRED)
+find_package(Parquet REQUIRED)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -25,4 +26,4 @@ set(CMAKE_CXX_FLAGS "-ftemplate-backtrace-limit=20 -Wall -Wextra -Werror -Wfloat
 include(CheckCXXCompilerFlag)
 
 add_executable(hello_world "hello_world.x.cpp")
-target_link_libraries(hello_world arrow)
+target_link_libraries(hello_world PRIVATE Arrow::arrow_shared Parquet::parquet_shared)

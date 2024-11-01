@@ -4,6 +4,11 @@
 
 #include <iostream>
 #include <arrow/api.h>
+#include <arrow/csv/api.h>
+#include <arrow/io/api.h>
+#include <arrow/ipc/api.h>
+#include <parquet/arrow/reader.h>
+#include <parquet/arrow/writer.h>
 
 
 void test_hello_arrow() {
@@ -22,7 +27,7 @@ void test_hello_arrow() {
     std::cout << " ======== TEST hello arrow ============" << std::endl;
 }
 
-void test_arrow_schema() {
+std::shared_ptr<arrow::RecordBatch> test_arrow_schema() {
 
     std::cout << " ======== TEST arrow schema ============" << std::endl;
     std::shared_ptr<arrow::Field> field_day, field_month, field_year;
@@ -52,9 +57,10 @@ void test_arrow_schema() {
 
     std::cout << rbatch->ToString() << std::endl;
     std::cout << " ======== TEST arrow schema ============" << std::endl;
+    return rbatch;
 }
 
-void test_arrow_chunked_array() {
+std::shared_ptr<arrow::ChunkedArray> test_arrow_chunked_array() {
 
     std::cout << " ======== TEST chunked array ============" << std::endl;
     arrow::Int8Builder int8builder;
@@ -69,9 +75,10 @@ void test_arrow_chunked_array() {
     std::shared_ptr<arrow::ChunkedArray> days_chunk = std::make_shared<arrow::ChunkedArray>(days_vec);
     std::cout << " >> " << days_chunk->ToString() << std::endl;
     std::cout << " ======== TEST chunked array ============" << std::endl;
+    return days_chunk;
 }
 
-void test_table() {
+std::shared_ptr<arrow::Table> test_table() {
     std::cout << " ======== TEST table ============" << std::endl;
     std::shared_ptr<arrow::Field> field_day, field_month, field_year;
     std::shared_ptr<arrow::Schema> schema;
@@ -114,6 +121,23 @@ void test_table() {
     std::cout << table->ToString() << std::endl;
 
     std::cout << " ======== TEST table ============" << std::endl;
+    return table;
+}
+
+void table_to_csv() {
+    std::shared_ptr<arrow::Table> csv_table = test_table();
+    std::shared_ptr<arrow::io::FileOutputStream> outfile;
+    outfile = *arrow::io::FileOutputStream::Open("test_out.csv");
+    auto csv_writer = *arrow::csv::MakeCSVWriter(outfile, csv_table->schema());
+    [[maybe_unused]] arrow::Status l_write_state = csv_writer->WriteTable(*csv_table);
+    l_write_state = csv_writer->Close();
+}
+
+void table_to_parquet() {
+    std::shared_ptr<arrow::Table> parquet_table = test_table();
+    std::shared_ptr<arrow::io::FileOutputStream> outfile;
+    outfile = *arrow::io::FileOutputStream::Open("test_out.parquet");
+    [[maybe_unused]] arrow::Status l_write_state = parquet::arrow::WriteTable(*parquet_table, arrow::default_memory_pool(), outfile, 5);
 }
 
 int main() {
@@ -122,5 +146,7 @@ int main() {
     test_arrow_schema();
     test_arrow_chunked_array();
     test_table();
+    table_to_csv();
+    table_to_parquet();
     return 0;
 }
