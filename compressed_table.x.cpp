@@ -61,14 +61,6 @@ std::shared_ptr<arrow::Table> test_table() {
     return table;
 }
 
-void table_to_csv(std::shared_ptr<arrow::Table> csv_table) {
-    std::shared_ptr<arrow::io::FileOutputStream> outfile;
-    outfile = *arrow::io::FileOutputStream::Open("test_out.csv");
-    auto csv_writer = *arrow::csv::MakeCSVWriter(outfile, csv_table->schema());
-    [[maybe_unused]] arrow::Status l_write_state = csv_writer->WriteTable(*csv_table);
-    l_write_state = csv_writer->Close();
-}
-
 void table_to_parquet(std::shared_ptr<arrow::Table> parquet_table) {
     std::shared_ptr<arrow::io::FileOutputStream> outfile;
     outfile = *arrow::io::FileOutputStream::Open("test_out_multi.parquet");
@@ -102,7 +94,6 @@ void table_to_parquet(std::shared_ptr<arrow::Table> parquet_table) {
 int main() {
 
     std::shared_ptr<arrow::Table> sample_table = test_table();
-    table_to_csv(sample_table);
     table_to_parquet(sample_table);
     return 0;
 }
