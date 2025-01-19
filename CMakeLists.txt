@@ -26,4 +26,6 @@ set(CMAKE_CXX_FLAGS "-ftemplate-backtrace-limit=20 -Wall -Wextra -Werror -Wfloat
 include(CheckCXXCompilerFlag)
 
 add_executable(hello_world "hello_world.x.cpp")
+add_executable(compressed_table "compressed_table.x.cpp")
 target_link_libraries(hello_world PRIVATE Arrow::arrow_shared Parquet::parquet_shared)
+target_link_libraries(compressed_table PRIVATE Arrow::arrow_shared Parquet::parquet_shared)
