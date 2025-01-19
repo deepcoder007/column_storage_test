@@ -53,9 +53,9 @@ std::shared_ptr<arrow::Table> test_table() {
 
     std::cout << " > number of entries in days:" << days_chunk->length() << std::endl;
     std::cout << " > number of chunks:" << days_chunk->num_chunks() << std::endl;
-    std::cout << " > Slice [3:+5]:" << days_chunk->Slice(3, 5)->ToString() << std::endl;
+    // std::cout << " > Slice [3:+5]:" << days_chunk->Slice(3, 5)->ToString() << std::endl;
 
-    std::cout << table->ToString() << std::endl;
+    // std::cout << table->ToString() << std::endl;
 
     std::cout << " ======== TEST table ============" << std::endl;
     return table;
@@ -71,8 +71,32 @@ void table_to_csv(std::shared_ptr<arrow::Table> csv_table) {
 
 void table_to_parquet(std::shared_ptr<arrow::Table> parquet_table) {
     std::shared_ptr<arrow::io::FileOutputStream> outfile;
-    outfile = *arrow::io::FileOutputStream::Open("test_out.parquet");
-    [[maybe_unused]] arrow::Status l_write_state = parquet::arrow::WriteTable(*parquet_table, arrow::default_memory_pool(), outfile, 5);
+    outfile = *arrow::io::FileOutputStream::Open("test_out_multi.parquet");
+    // [[maybe_unused]] arrow::Status l_write_state = parquet::arrow::WriteTable(*parquet_table, arrow::default_memory_pool(), outfile, 5);
+
+    std::shared_ptr<arrow::Field> field_day, field_month, field_year;
+    std::shared_ptr<arrow::Schema> schema;
+
+    field_day = arrow::field("Day", arrow::int8());
+    field_month = arrow::field("Month", arrow::int8());
+    field_year = arrow::field("Year", arrow::int16());
+
+    schema = arrow::schema({field_day, field_month, field_year});
+    arrow::Result<std::unique_ptr<parquet::arrow::FileWriter>> file_writer_result = parquet::arrow::FileWriter::Open(*schema, arrow::default_memory_pool(), outfile);
+    std::unique_ptr<parquet::arrow::FileWriter> file_writer = std::move(*file_writer_result);
+    [[maybe_unused]] arrow::Status l_status;
+    for (uint32_t i = 0; i != 1'000'000; ++i) {
+        l_status = file_writer->WriteTable(*parquet_table, 10);
+        if (not l_status.ok()) {
+            std::cout << " file write failed" << std::endl;
+            return;
+        }
+    }
+    l_status = file_writer->Close();
+    if (not l_status.ok()) {
+        std::cout << " file close failed" << std::endl;
+        return;
+    }
 }
 
 int main() {
