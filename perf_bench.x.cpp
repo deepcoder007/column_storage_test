@@ -42,7 +42,8 @@ std::shared_ptr<arrow::ChunkedArray> test_arrow_chunked_array() {
     arrow::Status l_status_days;
     arrow::ArrayVector days_vec_all;
     std::shared_ptr<arrow::Array> days_vec;
-    for (uint32_t i = 0; i != 10; ++i) {
+    for (uint32_t i = 0; i != 1000; ++i) {
+        BenchContext l_entry{"IterLatency"};
         if (i % 3 == 0) {
             l_status_days = int32Builder.AppendValues(days_raw2, 5);
             days_vec = *int32Builder.Finish();
@@ -54,7 +55,11 @@ std::shared_ptr<arrow::ChunkedArray> test_arrow_chunked_array() {
         }
     }
 
-    std::shared_ptr<arrow::ChunkedArray> days_chunk = std::make_shared<arrow::ChunkedArray>(days_vec_all);
+    std::shared_ptr<arrow::ChunkedArray> days_chunk;
+    {
+        BenchContext l_entry{"makeChunkArray"};
+        days_chunk = std::make_shared<arrow::ChunkedArray>(days_vec_all);
+    }
     std::cout << " >> " << days_chunk->ToString() << std::endl;
     std::cout << " ======== TEST chunked array ============" << std::endl;
     return days_chunk;
