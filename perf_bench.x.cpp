@@ -4,6 +4,7 @@
 
 
 #include <iostream>
+#include <vector>
 #include <arrow/api.h>
 #include <arrow/csv/api.h>
 #include <arrow/io/api.h>
@@ -17,12 +18,18 @@ static uint64_t rdtsc_snap() {
     return (rdx << 32u) + rax;
 }
 
+using time_vec_t = std::vector<uint64_t>;
+
+class BenchRecordContext;
+
 class BenchContext{
+    friend class BenchRecordContext;
+private:
     const std::string m_name;
     const uint64_t m_begin;
+    static inline time_vec_t* s_latency_record = nullptr;
 private:
     static inline bool s_in_context;
-    static inline std::vector<uint64_t> s_latency_record;
 public:
     explicit BenchContext(const std::string& name)
         : m_name{name}, m_begin{rdtsc_snap()} {
@@ -36,13 +43,29 @@ public:
     ~BenchContext() {
         const uint64_t m_end = rdtsc_snap();
         const uint64_t l_latency = m_end - m_begin;
-        // std::cout << "Latency:[" << m_name << "] [" << l_latency << "]" << std::endl;
-        s_latency_record.emplace_back(l_latency);
+        if (s_latency_record != nullptr) {
+            s_latency_record->emplace_back(l_latency);
+        }
         s_in_context = false;
     }
+};
+
+class BenchRecordContext {
+    time_vec_t m_latency_record;
 public:
-    static const std::vector<uint64_t> latency_vec() {
-        return s_latency_record;
+    explicit BenchRecordContext() {
+        if (BenchContext::s_latency_record != nullptr) {
+            std::cout << "Alreayd in context" << std::endl;
+            ::abort();
+        }
+        BenchContext::s_latency_record = &m_latency_record;
+    }
+    ~BenchRecordContext() {
+        BenchContext::s_latency_record = nullptr;
+    }
+public:
+    const time_vec_t& vec() const {
+        return m_latency_record;
     }
 };
 
@@ -65,20 +88,23 @@ std::shared_ptr<arrow::ChunkedArray> test_arrow_chunked_array() {
     arrow::Status l_status_days;
     arrow::ArrayVector days_vec_all;
     std::shared_ptr<arrow::Array> days_vec;
-    for (uint32_t i = 0; i != c_max_num_iter; ++i) {
-        BenchContext l_entry{"IterLatency"};
-        if (i % 3 == 0) {
-            l_status_days = int32Builder.AppendValues(days_raw2, c_max_num_values);
-            days_vec = *int32Builder.Finish();
-            days_vec_all.emplace_back(std::move(days_vec));
-        } else {
-            l_status_days = int32Builder.AppendValues(days_raw1, c_max_num_values);
-            days_vec = *int32Builder.Finish();
-            days_vec_all.emplace_back(std::move(days_vec));
+    std::vector<uint64_t> l_latency_vec;
+    {
+        BenchRecordContext l_basic_test{};
+        for (uint32_t i = 0; i != c_max_num_iter; ++i) {
+            BenchContext l_entry{"IterLatency"};
+            if (i % 3 == 0) {
+                l_status_days = int32Builder.AppendValues(days_raw2, c_max_num_values);
+                days_vec = *int32Builder.Finish();
+                days_vec_all.emplace_back(std::move(days_vec));
+            } else {
+                l_status_days = int32Builder.AppendValues(days_raw1, c_max_num_values);
+                days_vec = *int32Builder.Finish();
+                days_vec_all.emplace_back(std::move(days_vec));
+            }
         }
+        l_latency_vec = l_basic_test.vec();
     }
-
-    std::vector<uint64_t> l_latency_vec = BenchContext::latency_vec();
     std::sort(l_latency_vec.begin(), l_latency_vec.end());
     {
         std::stringstream ss;
@@ -102,11 +128,16 @@ std::shared_ptr<arrow::ChunkedArray> test_arrow_chunked_array() {
 
     std::shared_ptr<arrow::ChunkedArray> days_chunk;
     {
-        BenchContext l_entry{"makeChunkArray"};
-        days_chunk = std::make_shared<arrow::ChunkedArray>(days_vec_all);
+        BenchRecordContext l_basic_test{};
+        {
+            BenchContext l_entry{"makeChunkArray"};
+            days_chunk = std::make_shared<arrow::ChunkedArray>(days_vec_all);
+        }
+        std::cout << " > num chunks :" << days_chunk->num_chunks() << std::endl;
+        // std::cout << " >> " << days_chunk->ToString() << std::endl;
+        std::cout << " > Vec size: " << l_basic_test.vec().size() << std::endl;
+        std::cout << " >> Make chunk array lantency: " << l_basic_test.vec()[0] << std::endl;
     }
-    std::cout << " >> " << days_chunk->ToString() << std::endl;
-    std::cout << " >> Make chunk array lantency: " << BenchContext::latency_vec().back() << std::endl;
     std::cout << " ======== TEST chunked array ============" << std::endl;
     return days_chunk;
 }
